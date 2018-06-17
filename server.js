@@ -6,7 +6,7 @@ const logger = require('morgan')
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track', { useMongoClient: true })
+mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track')
 
 const ExerciseSchema = new mongoose.Schema({
   userId: String,
@@ -60,7 +60,7 @@ app.post('/api/exercise/new-user', (req, res, next) => {
       // Respond with created status, and the created user with its corresponding userId
       // using username as userId to use simple GET .../log/userId=[username/userId] requests
       // userId is not stored in due to avoid duplicated data
-      res.status(201).send({ username: user.username, userId: user.username});
+      res.status(201).send({ username: user.username, _id: user.username});
     });
   } else {
     const err = new Error("You must provide an username");
@@ -92,8 +92,16 @@ app.get('/api/exercise/log', (req, res, next) => {
     exec((err, user) => {
         if(err) return next(err);
         if(!user) return next(new Error("User not found"));
+        const formattedLog = user.exercise.map(log => {
+          return {description: log.description, duration: log.duration, date: log.date.toDateString()}
+        });
         // If no errors and user was found return exercise array
-        res.status(200).send(user.exercise);
+        res.status(200).send({
+          _id: user.username,
+          username: user.username,
+          count: user.exercise.length,
+          log: formattedLog
+        });
     });
   }
   else {
@@ -134,10 +142,11 @@ app.post('/api/exercise/add', (req, res, next) => {
           if(err) return next(err);
           // Created and assignated exercise to user, respond to client
           res.status(201).send({
+            _id: user.username,
             username: user.username,
             description: exercise.description,
             duration: exercise.duration,
-            date: exercise.date
+            date: exercise.date.toDateString()
           });
         });
       });
